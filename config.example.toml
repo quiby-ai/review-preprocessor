@@ -1,0 +1,20 @@
+[kafka]
+brokers = ["localhost:9092"]
+group_id = "review-preprocessor"
+topic_prepare_reviews = "pipeline.prepare_reviews"
+topic_cluster_reviews = "pipeline.cluster_reviews"
+topic_failed = "pipeline.failed"
+
+[postgres]
+dsn = "postgres://user:pass@localhost:5432/reviews?sslmode=disable"
+
+[processing]
+default_lang = "en"
+batch_size = 200
+publish_ids_limit = 500
+max_review_len = 8000
+min_content_len = 10
+html_strip = true
+emoji_strip = true
+whitespace_normalize = true
+timeout_seconds = 30
