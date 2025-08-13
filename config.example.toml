@@ -18,3 +18,26 @@ html_strip = true
 emoji_strip = true
 whitespace_normalize = true
 timeout_seconds = 30
+
+min_words = 4
+min_chars = 20
+min_alpha_ratio = 0.35
+save_skipped = true
+
+lang_detect_min_conf = 0.70
+translate_enabled = true
+translate_target_lang = "en"
+translate_batch_size = 20
+translate_timeout_seconds = 15
+translate_provider = "openai"
+
+# translation fallback
+translate_fallback_enabled = true
+translate_fallback_model = "gpt-5-mini"
+translate_fallback_sample = 5
+translate_fallback_adequacy_ratio = 0.5
+
+[openai]
+api_key = ""  # prefer ENV: OPENAI_API_KEY
+model   = "gpt-5-nano"
+endpoint = "https://api.openai.com/v1/chat/completions"

@@ -31,14 +31,24 @@ func migrateClean(db *sql.DB) error {
 		app_id TEXT NOT NULL,
 		country VARCHAR(2) NOT NULL,
 		rating SMALLINT NOT NULL,
-		title TEXT NOT NULL,
-		content_clean TEXT NOT NULL,
-		language VARCHAR(2),
+        title TEXT NOT NULL,
+        content_clean TEXT NOT NULL,
+        language VARCHAR(8),
+        content_en TEXT,
+        is_contentful BOOLEAN NOT NULL DEFAULT TRUE,
 		reviewed_at TIMESTAMPTZ NOT NULL,
 		response_date TIMESTAMPTZ,
 		response_content_clean TEXT,
 		processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	);`
-	_, err := db.Exec(schema)
-	return err
+	if _, err := db.Exec(schema); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_clean_app_time ON clean_reviews(app_id, reviewed_at);`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_clean_contentful ON clean_reviews(is_contentful);`); err != nil {
+		return err
+	}
+	return nil
 }

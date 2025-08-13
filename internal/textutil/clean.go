@@ -31,3 +31,34 @@ func Clean(s string, stripHTML, stripEmoji, normWS bool, maxLen, minLen int) (ou
 	}
 	return out, true
 }
+
+// IsContentful applies simple heuristics to determine if text is contentful.
+// Rules: non-empty, min words or chars, alpha ratio threshold.
+func IsContentful(text string, minWords, minChars int, minAlphaRatio float64) bool {
+	if len(strings.TrimSpace(text)) == 0 {
+		return false
+	}
+	if minChars > 0 && len(text) < minChars {
+		return false
+	}
+	// word count
+	words := reWhitespace.Split(strings.TrimSpace(text), -1)
+	if minWords > 0 && len(words) < minWords {
+		return false
+	}
+	// alpha ratio
+	if minAlphaRatio > 0 {
+		var alpha int
+		for _, r := range text {
+			if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r > 127 {
+				alpha++
+			}
+		}
+		if total := len(text); total > 0 {
+			if float64(alpha)/float64(total) < minAlphaRatio {
+				return false
+			}
+		}
+	}
+	return true
+}
