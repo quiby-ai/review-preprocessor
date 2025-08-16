@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/quiby-ai/common/pkg/events"
 	"github.com/quiby-ai/review-preprocessor/config"
 	"github.com/quiby-ai/review-preprocessor/internal/lang"
 	"github.com/quiby-ai/review-preprocessor/internal/producer"
@@ -11,15 +12,6 @@ import (
 	"github.com/quiby-ai/review-preprocessor/internal/textutil"
 	"github.com/quiby-ai/review-preprocessor/internal/translate"
 )
-
-type PrepareReviewsEvent struct {
-	JobID     string   `json:"job_id"`
-	AppID     string   `json:"app_id"`
-	Countries []string `json:"countries"`
-	DateFrom  string   `json:"date_from"` // RFC3339 or YYYY-MM-DD
-	DateTo    string   `json:"date_to"`
-	Limit     int      `json:"limit"`
-}
 
 type PreprocessService struct {
 	raw   *storage.RawRepository
@@ -49,19 +41,15 @@ func parseTime(s string, def time.Time) time.Time {
 	return def
 }
 
-func (s *PreprocessService) Handle(ctx context.Context, evt PrepareReviewsEvent) error {
+func (s *PreprocessService) Handle(ctx context.Context, evt events.PrepareRequest) error {
 	from := parseTime(evt.DateFrom, time.Time{})
 	to := parseTime(evt.DateTo, time.Now().UTC())
-	if evt.Limit <= 0 {
-		evt.Limit = s.cfg.BatchSize
-	}
 
 	rawItems, err := s.raw.Fetch(ctx, storage.RawFilters{
 		AppID:     evt.AppID,
 		Countries: evt.Countries,
 		DateFrom:  from,
 		DateTo:    to,
-		Limit:     evt.Limit,
 	})
 	if err != nil {
 		return err
@@ -77,11 +65,9 @@ func (s *PreprocessService) Handle(ctx context.Context, evt PrepareReviewsEvent)
 	if s.cfg.PublishIDsLimit > 0 && len(ids) > s.cfg.PublishIDsLimit {
 		ids = ids[:s.cfg.PublishIDsLimit]
 	}
-	return s.prod.PublishClusterEvent(ctx, producer.ClusterReviewsEvent{
-		JobID: evt.JobID,
-		AppID: evt.AppID,
-		IDs:   ids,
-		Count: len(ids),
+	return s.prod.PublishEvent(ctx, events.PrepareCompleted{
+		PrepareRequest: evt,
+		CleanCount:     len(ids),
 	})
 }
 

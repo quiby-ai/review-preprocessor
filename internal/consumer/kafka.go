@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/quiby-ai/common/pkg/events"
 	"github.com/quiby-ai/review-preprocessor/config"
 	"github.com/quiby-ai/review-preprocessor/internal/service"
 	"github.com/segmentio/kafka-go"
@@ -18,7 +19,7 @@ type KafkaConsumer struct {
 func NewKafkaConsumer(cfg config.KafkaConfig, svc *service.PreprocessService) *KafkaConsumer {
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: cfg.Brokers,
-		Topic:   cfg.TopicPrepareReviews,
+		Topic:   events.PipelinePrepareRequest,
 		GroupID: cfg.GroupID,
 	})
 	return &KafkaConsumer{reader: reader, svc: svc}
@@ -30,7 +31,7 @@ func (kc *KafkaConsumer) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		var evt service.PrepareReviewsEvent
+		var evt events.PrepareRequest
 		if err := json.Unmarshal(m.Value, &evt); err != nil {
 			log.Printf("invalid message: %v", err)
 			continue

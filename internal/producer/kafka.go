@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/quiby-ai/common/pkg/events"
 	"github.com/quiby-ai/review-preprocessor/config"
 	"github.com/segmentio/kafka-go"
 )
@@ -17,21 +18,14 @@ func NewKafkaProducer(cfg config.KafkaConfig) *KafkaProducer {
 	return &KafkaProducer{
 		writer: &kafka.Writer{
 			Addr:     kafka.TCP(cfg.Brokers...),
-			Topic:    cfg.TopicClusterReviews,
+			Topic:    events.PipelinePrepareCompleted,
 			Balancer: &kafka.LeastBytes{},
 		},
 		cfg: cfg,
 	}
 }
 
-type ClusterReviewsEvent struct {
-	JobID string   `json:"job_id"`
-	AppID string   `json:"app_id"`
-	IDs   []string `json:"ids"`
-	Count int      `json:"count"`
-}
-
-func (p *KafkaProducer) PublishClusterEvent(ctx context.Context, evt ClusterReviewsEvent) error {
+func (p *KafkaProducer) PublishEvent(ctx context.Context, evt events.PrepareCompleted) error {
 	b, err := json.Marshal(evt)
 	if err != nil {
 		return err

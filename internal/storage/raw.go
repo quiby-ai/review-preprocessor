@@ -17,7 +17,6 @@ type RawFilters struct {
 	Countries []string
 	DateFrom  time.Time
 	DateTo    time.Time
-	Limit     int
 }
 
 type RawReview struct {
@@ -38,22 +37,21 @@ func (r *RawRepository) Fetch(ctx context.Context, f RawFilters) ([]RawReview, e
 		WHERE app_id = $1
 		AND ($2::text[] IS NULL OR country = ANY($2))
 		AND reviewed_at >= $3 AND reviewed_at <= $4
-		ORDER BY reviewed_at ASC
-		LIMIT $5`
+		ORDER BY reviewed_at ASC`
 
 	var rows *sql.Rows
 	var err error
 	if len(f.Countries) == 0 {
-		rows, err = r.db.QueryContext(ctx, q, f.AppID, nil, f.DateFrom, f.DateTo, f.Limit)
+		rows, err = r.db.QueryContext(ctx, q, f.AppID, nil, f.DateFrom, f.DateTo)
 	} else {
-		rows, err = r.db.QueryContext(ctx, q, f.AppID, pq.Array(f.Countries), f.DateFrom, f.DateTo, f.Limit)
+		rows, err = r.db.QueryContext(ctx, q, f.AppID, pq.Array(f.Countries), f.DateFrom, f.DateTo)
 	}
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	out := make([]RawReview, 0, f.Limit)
+	out := []RawReview{}
 	for rows.Next() {
 		var rr RawReview
 		if err := rows.Scan(&rr.ID, &rr.AppID, &rr.Country, &rr.Rating, &rr.Title, &rr.Content, &rr.ReviewedAt, &rr.ResponseDate, &rr.ResponseContent); err != nil {
