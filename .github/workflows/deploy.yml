@@ -19,11 +19,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
 
+      - name: Set environment variables
+        id: env
+        run: |
+          echo "PG_DSN=${{ secrets.PG_DSN }}" >> $GITHUB_ENV
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+  
       - name: Build & Push
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
+          build-args: |
+            PG_DSN=${{ env.PG_DSN }}
+            OPENAI_API_KEY=${{ env.OPENAI_API_KEY }}
           tags: |
             ghcr.io/quiby-ai/review-preprocessor:${{ github.sha }}
             ghcr.io/quiby-ai/review-preprocessor:main
