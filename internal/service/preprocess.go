@@ -16,12 +16,12 @@ import (
 type PreprocessService struct {
 	raw   *storage.RawRepository
 	clean *storage.CleanRepository
-	prod  *producer.KafkaProducer
+	prod  *producer.Producer
 	cfg   config.ProcessingConfig
 	tr    translate.Translator
 }
 
-func NewPreprocessService(raw *storage.RawRepository, clean *storage.CleanRepository, prod *producer.KafkaProducer, cfg config.ProcessingConfig, tr translate.Translator) *PreprocessService {
+func NewPreprocessService(raw *storage.RawRepository, clean *storage.CleanRepository, prod *producer.Producer, cfg config.ProcessingConfig, tr translate.Translator) *PreprocessService {
 	if tr == nil {
 		tr = translate.Noop{}
 	}
@@ -41,7 +41,7 @@ func parseTime(s string, def time.Time) time.Time {
 	return def
 }
 
-func (s *PreprocessService) Handle(ctx context.Context, evt events.PrepareRequest) error {
+func (s *PreprocessService) Handle(ctx context.Context, evt events.PrepareRequest, sagaID string) error {
 	from := parseTime(evt.DateFrom, time.Time{})
 	to := parseTime(evt.DateTo, time.Now().UTC())
 
@@ -65,10 +65,12 @@ func (s *PreprocessService) Handle(ctx context.Context, evt events.PrepareReques
 	if s.cfg.PublishIDsLimit > 0 && len(ids) > s.cfg.PublishIDsLimit {
 		ids = ids[:s.cfg.PublishIDsLimit]
 	}
-	return s.prod.PublishEvent(ctx, events.PrepareCompleted{
+	prepareCompleted := events.PrepareCompleted{
 		PrepareRequest: evt,
 		CleanCount:     len(ids),
-	})
+	}
+	envelope := s.prod.BuildEnvelope(prepareCompleted, sagaID)
+	return s.prod.PublishEvent(ctx, []byte(sagaID), envelope)
 }
 
 // buildCleanBatch cleans, checks contentfulness, detects language, and builds the batch.

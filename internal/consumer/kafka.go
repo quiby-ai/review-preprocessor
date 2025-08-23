@@ -33,21 +33,19 @@ func (kc *KafkaConsumer) Run(ctx context.Context) error {
 		}
 
 		var fullMessage struct {
+			SagaID  string                `json:"saga_id"`
 			Payload events.PrepareRequest `json:"payload"`
 		}
-
-		log.Printf("received message (serialized): %v", m.Value)
-
 		if err := json.Unmarshal(m.Value, &fullMessage); err != nil {
 			log.Printf("invalid message: %v", err)
 			continue
 		}
-
-		log.Printf("received message (deserialized): %v", fullMessage)
-
 		evt := fullMessage.Payload
+		sagaID := fullMessage.SagaID
 
-		if err := kc.svc.Handle(ctx, evt); err != nil {
+		log.Printf("got message: %v", fullMessage)
+
+		if err := kc.svc.Handle(ctx, evt, sagaID); err != nil {
 			log.Printf("handle error: %v", err)
 		}
 	}

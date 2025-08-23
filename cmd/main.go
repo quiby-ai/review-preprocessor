@@ -27,7 +27,7 @@ func main() {
 	repoRaw := storage.NewRawRepository(db)
 	repoClean := storage.NewCleanRepository(db)
 
-	prod := producer.NewKafkaProducer(cfg.Kafka)
+	prod := producer.NewProducer(cfg.Kafka)
 	// translator selection (primary + optional fallback via cascade)
 	var tr translate.Translator
 	switch cfg.Processing.TranslateProvider {

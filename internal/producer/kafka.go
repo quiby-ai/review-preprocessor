@@ -2,40 +2,66 @@ package producer
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/quiby-ai/common/pkg/events"
 	"github.com/quiby-ai/review-preprocessor/config"
 	"github.com/segmentio/kafka-go"
 )
 
-type KafkaProducer struct {
-	writer *kafka.Writer
-	cfg    config.KafkaConfig
+type Producer struct {
+	w *kafka.Writer
 }
 
-func NewKafkaProducer(cfg config.KafkaConfig) *KafkaProducer {
-	return &KafkaProducer{
-		writer: &kafka.Writer{
-			Addr:     kafka.TCP(cfg.Brokers...),
-			Topic:    events.PipelinePrepareCompleted,
-			Balancer: &kafka.LeastBytes{},
-		},
-		cfg: cfg,
-	}
+func NewProducer(cfg config.KafkaConfig) *Producer {
+	w := kafka.NewWriter(kafka.WriterConfig{
+		Brokers:      cfg.Brokers,
+		Balancer:     &kafka.Hash{},
+		RequiredAcks: int(kafka.RequireAll),
+		Async:        false,
+	})
+	return &Producer{w: w}
 }
 
-func (p *KafkaProducer) PublishEvent(ctx context.Context, evt events.PrepareCompleted) error {
-	b, err := json.Marshal(evt)
+func (p *Producer) Close() error { return p.w.Close() }
+
+func (p *Producer) PublishEvent(ctx context.Context, key []byte, envelope events.Envelope[any]) error {
+	value, err := events.MarshalEnvelope(envelope)
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal envelope: %w", err)
 	}
-	return p.writer.WriteMessages(ctx, kafka.Message{Value: b})
+
+	// Convert envelope headers to Kafka headers
+	kafkaHeaders := make([]kafka.Header, 0, len(envelope.KafkaHeaders()))
+	for _, h := range envelope.KafkaHeaders() {
+		kafkaHeaders = append(kafkaHeaders, kafka.Header{
+			Key:   h.Key,
+			Value: h.Value,
+		})
+	}
+
+	msg := kafka.Message{
+		Topic:   events.PipelinePrepareCompleted,
+		Key:     key,
+		Value:   value,
+		Headers: kafkaHeaders,
+		Time:    time.Now(),
+	}
+	return p.w.WriteMessages(ctx, msg)
 }
 
-func (p *KafkaProducer) Close() error {
-	if p.writer != nil {
-		return p.writer.Close()
+func (p *Producer) BuildEnvelope(event events.PrepareCompleted, sagaID string) events.Envelope[any] {
+	return events.Envelope[any]{
+		MessageID:  uuid.NewString(),
+		SagaID:     sagaID,
+		Type:       events.PipelinePrepareCompleted,
+		OccurredAt: time.Now().UTC(),
+		Payload:    event,
+		Meta: events.Meta{
+			AppID:         event.AppID,
+			SchemaVersion: events.SchemaVersionV1,
+		},
 	}
-	return nil
 }
