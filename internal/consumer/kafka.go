@@ -31,11 +31,22 @@ func (kc *KafkaConsumer) Run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		var evt events.PrepareRequest
-		if err := json.Unmarshal(m.Value, &evt); err != nil {
+
+		var fullMessage struct {
+			Payload events.PrepareRequest `json:"payload"`
+		}
+
+		log.Printf("received message (serialized): %v", m.Value)
+
+		if err := json.Unmarshal(m.Value, &fullMessage); err != nil {
 			log.Printf("invalid message: %v", err)
 			continue
 		}
+
+		log.Printf("received message (deserialized): %v", fullMessage)
+
+		evt := fullMessage.Payload
+
 		if err := kc.svc.Handle(ctx, evt); err != nil {
 			log.Printf("handle error: %v", err)
 		}
