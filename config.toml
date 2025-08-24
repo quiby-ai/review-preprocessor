@@ -35,6 +35,6 @@ translate_fallback_sample = 5
 translate_fallback_adequacy_ratio = 0.5
 
 [openai]
-# api_key = comes from OPENAI_API_KEY environment variable
 model   = "gpt-5-nano"
 endpoint = "https://api.openai.com/v1/chat/completions"
+# api_key = comes from OPENAI_API_KEY environment variable

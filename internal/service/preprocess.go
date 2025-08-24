@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/quiby-ai/common/pkg/events"
@@ -52,14 +54,19 @@ func (s *PreprocessService) Handle(ctx context.Context, evt events.PrepareReques
 		DateTo:    to,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("fetch raw reviews: %w", err)
 	}
 
+	log.Printf("Processing %d reviews for app %s", len(rawItems), evt.AppID)
+
 	cleanBatch, ids := s.buildCleanBatch(rawItems)
+
+	log.Printf("Cleaned %d reviews, %d contentful", len(cleanBatch), len(ids))
+
 	s.runTranslations(ctx, &cleanBatch)
 
 	if err := s.clean.UpsertBatch(ctx, cleanBatch); err != nil {
-		return err
+		return fmt.Errorf("upsert clean reviews: %w", err)
 	}
 
 	if s.cfg.PublishIDsLimit > 0 && len(ids) > s.cfg.PublishIDsLimit {
@@ -153,6 +160,7 @@ func (s *PreprocessService) runTranslations(ctx context.Context, batch *[]storag
 		if !b.IsContentful {
 			continue
 		}
+		// Only translate non-English content or low-confidence detections
 		if b.Language != "en" {
 			toTranslate = append(toTranslate, translate.Item{ID: b.ID, Text: b.ContentClean})
 			idToIndex[b.ID] = i
@@ -179,6 +187,7 @@ func (s *PreprocessService) runTranslations(ctx context.Context, batch *[]storag
 		}
 		res, err := s.tr.TranslateBatch(tctx, sub, s.cfg.TranslateTargetLang)
 		if err != nil {
+			log.Printf("translation batch failed: %v", err)
 			continue
 		}
 		for _, it := range sub {
@@ -187,13 +196,12 @@ func (s *PreprocessService) runTranslations(ctx context.Context, batch *[]storag
 				continue
 			}
 			idx := idToIndex[it.ID]
+			// Only update ContentEN with translated text, don't overwrite original language
 			if r.Translated != "" {
 				en := r.Translated
 				(*batch)[idx].ContentEN = &en
 			}
-			if r.Lang != "" {
-				(*batch)[idx].Language = r.Lang
-			}
+			// Don't overwrite the original language - keep what was detected in buildCleanBatch
 		}
 	}
 }

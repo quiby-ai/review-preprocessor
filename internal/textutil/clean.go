@@ -8,8 +8,7 @@ import (
 var (
 	reHTMLTags   = regexp.MustCompile(`<[^>]+>`) // simple stripper
 	reWhitespace = regexp.MustCompile(`\s+`)
-	// Emoji ranges (basic) — extend if needed
-	reEmoji = regexp.MustCompile("[\u2190-\u21FF\u2600-\u27BF\u1F300-\u1F6FF\u1F900-\u1F9FF\u1FA70-\u1FAFF]")
+	// Emoji regex removed due to content corruption issues
 )
 
 func Clean(s string, stripHTML, stripEmoji, normWS bool, maxLen, minLen int) (out string, ok bool) {
@@ -17,9 +16,10 @@ func Clean(s string, stripHTML, stripEmoji, normWS bool, maxLen, minLen int) (ou
 	if stripHTML {
 		out = reHTMLTags.ReplaceAllString(out, " ")
 	}
-	if stripEmoji {
-		out = reEmoji.ReplaceAllString(out, " ")
-	}
+	// Emoji stripping disabled due to content corruption issues
+	// if stripEmoji {
+	// 	out = reEmoji.ReplaceAllString(out, " ")
+	// }
 	if normWS {
 		out = reWhitespace.ReplaceAllString(strings.TrimSpace(out), " ")
 	}

@@ -28,6 +28,7 @@ func main() {
 	repoClean := storage.NewCleanRepository(db)
 
 	prod := producer.NewProducer(cfg.Kafka)
+
 	// translator selection (primary + optional fallback via cascade)
 	var tr translate.Translator
 	switch cfg.Processing.TranslateProvider {
@@ -35,7 +36,7 @@ func main() {
 		primary := translate.NewOpenAIClient(cfg.OpenAI.Endpoint, cfg.OpenAI.Model, cfg.OpenAI.APIKey, cfg.Processing.TranslateTimeout)
 		var fallback translate.Translator
 		if cfg.Processing.TranslateFallbackEnabled {
-			fb := translate.NewOpenAIClient(cfg.OpenAI.Endpoint, cfg.Processing.TranslateFallbackModel, cfg.OpenAI.APIKey, cfg.Processing.TranslateTimeout)
+			fb := translate.NewOpenAIClient(cfg.OpenAI.Endpoint, cfg.OpenAI.Endpoint, cfg.OpenAI.APIKey, cfg.Processing.TranslateTimeout)
 			fallback = fb
 		}
 		tr = translate.NewCascade(primary, fallback, cfg.Processing.TranslateFallbackSample, cfg.Processing.TranslateFallbackAdequacyRatio)

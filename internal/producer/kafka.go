@@ -43,7 +43,7 @@ func (p *Producer) PublishEvent(ctx context.Context, key []byte, envelope events
 	}
 
 	msg := kafka.Message{
-		Topic:   events.PipelinePrepareCompleted,
+		Topic:   envelope.Type, // Use the topic from the envelope instead of hardcoded
 		Key:     key,
 		Value:   value,
 		Headers: kafkaHeaders,
