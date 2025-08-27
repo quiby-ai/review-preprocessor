@@ -2,58 +2,39 @@ package consumer
 
 import (
 	"context"
-	"encoding/json"
-	"log"
+	"fmt"
 
 	"github.com/quiby-ai/common/pkg/events"
 	"github.com/quiby-ai/review-preprocessor/config"
 	"github.com/quiby-ai/review-preprocessor/internal/service"
-	"github.com/segmentio/kafka-go"
 )
 
+type PreprocessServiceProcessor struct {
+	svc *service.PreprocessService
+}
+
+func (p *PreprocessServiceProcessor) Handle(ctx context.Context, payload any, sagaID string) error {
+	if evt, ok := payload.(events.PrepareRequest); ok {
+		return p.svc.Handle(ctx, evt, sagaID)
+	}
+	return fmt.Errorf("invalid payload type for preprocess service")
+}
+
 type KafkaConsumer struct {
-	reader *kafka.Reader
-	svc    *service.PreprocessService
+	consumer *events.KafkaConsumer
 }
 
 func NewKafkaConsumer(cfg config.KafkaConfig, svc *service.PreprocessService) *KafkaConsumer {
-	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers: cfg.Brokers,
-		Topic:   events.PipelinePrepareRequest,
-		GroupID: cfg.GroupID,
-	})
-	return &KafkaConsumer{reader: reader, svc: svc}
+	consumer := events.NewKafkaConsumer(cfg.Brokers, events.PipelinePrepareRequest, cfg.GroupID)
+	processor := &PreprocessServiceProcessor{svc: svc}
+	consumer.SetProcessor(processor)
+	return &KafkaConsumer{consumer: consumer}
 }
 
 func (kc *KafkaConsumer) Run(ctx context.Context) error {
-	for {
-		m, err := kc.reader.ReadMessage(ctx)
-		if err != nil {
-			return err
-		}
-
-		var fullMessage struct {
-			SagaID  string                `json:"saga_id"`
-			Payload events.PrepareRequest `json:"payload"`
-		}
-		if err := json.Unmarshal(m.Value, &fullMessage); err != nil {
-			log.Printf("invalid message: %v", err)
-			continue
-		}
-		evt := fullMessage.Payload
-		sagaID := fullMessage.SagaID
-
-		log.Printf("got message: %v", fullMessage)
-
-		if err := kc.svc.Handle(ctx, evt, sagaID); err != nil {
-			log.Printf("handle error: %v", err)
-		}
-	}
+	return kc.consumer.Run(ctx)
 }
 
 func (kc *KafkaConsumer) Close() error {
-	if kc.reader != nil {
-		return kc.reader.Close()
-	}
-	return nil
+	return kc.consumer.Close()
 }
