@@ -5,7 +5,7 @@ go 1.24.1
 require (
 	github.com/abadojack/whatlanggo v1.0.1
 	github.com/lib/pq v1.10.9
-	github.com/quiby-ai/common v0.0.0-20250827044541-f292ca021310
+	github.com/quiby-ai/common v0.0.2
 	github.com/spf13/viper v1.20.1
 )
 
